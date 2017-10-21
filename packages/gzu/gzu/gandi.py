@@ -1,4 +1,6 @@
-import xmlrpc.client, pprint, logging
+import pprint
+import xmlrpc.client
+
 from .settings import *
 
 logger = logging.getLogger('gandi')

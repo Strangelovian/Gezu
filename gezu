@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-import os.path, logging, argparse, gzu
+import argparse
+import gzu
+
 from gzu import *
 
 parser = argparse.ArgumentParser(description='ipv4 wan address updater')
@@ -19,13 +21,8 @@ Gzu.init(rcfile)
 
 logger = logging.getLogger('updatewan')
 
-ipv4WanAddress = args.v4_addr
-
-if ipv4WanAddress != None:
-    if gzu.shouldUpdateWanV4Address(ipv4WanAddress):
-        logger.info('zone update is needed')
-        gzu.doUpdateWanV4Address(ipv4WanAddress)
-    else:
-        logger.info('zone is up to date')
+if gzu.shouldUpdateWanV4Address(args.v4_addr):
+    logger.info('zone update is needed')
+    gzu.doUpdateWanV4Address(args.v4_addr)
 else:
-    logger.error('cannot retrieve livebox wan v4 address')
+    logger.info('zone is up to date')
