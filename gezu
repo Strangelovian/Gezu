@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+import os.path, logging, argparse, gzu
+from gzu import *
+
+parser = argparse.ArgumentParser(description='ipv4 wan address updater')
+parser.add_argument('--rc-file', help='path to the resource configuration file location', required=False)
+parser.add_argument('--v4-addr', help='v4 wan address to be registered', required=True)
+args = parser.parse_args()
+
+if args.rc_file and os.path.exists(args.rc_file):
+   rcfile = args.rc_file
+elif os.path.exists(os.path.expanduser("~/.updatewanv4rc")):
+   rcfile = os.path.expanduser("~/.updatewanv4rc")
+else:
+   print("no rc file found, exiting")
+   exit(-1) 
+
+Gzu.init(rcfile)
+
+logger = logging.getLogger('updatewan')
+
+ipv4WanAddress = args.v4_addr
+
+if ipv4WanAddress != None:
+    if Gzu.shouldUpdateWanV4Address(ipv4WanAddress):
+        logger.info('zone update is needed')
+        Gzu.doUpdateWanV4Address(ipv4WanAddress)
+    else:
+        logger.info('zone is up to date')
+else:
+    logger.error('cannot retrieve livebox wan v4 address')
