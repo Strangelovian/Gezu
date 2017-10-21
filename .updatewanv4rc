@@ -1,0 +1,7 @@
+[gandi]
+api_key = xxx
+zone_id = 0
+xml_rpc_url = https://rpc.gandi.net/xmlrpc/
+
+[log]
+path = ~/logwan/updateWanAddress.log
