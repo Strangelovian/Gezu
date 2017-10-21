@@ -22,9 +22,9 @@ logger = logging.getLogger('updatewan')
 ipv4WanAddress = args.v4_addr
 
 if ipv4WanAddress != None:
-    if Gzu.shouldUpdateWanV4Address(ipv4WanAddress):
+    if gzu.shouldUpdateWanV4Address(ipv4WanAddress):
         logger.info('zone update is needed')
-        Gzu.doUpdateWanV4Address(ipv4WanAddress)
+        gzu.doUpdateWanV4Address(ipv4WanAddress)
     else:
         logger.info('zone is up to date')
 else:
