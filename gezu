@@ -15,14 +15,11 @@ elif os.path.exists(os.path.expanduser("~/.updatewanv4rc")):
    rcfile = os.path.expanduser("~/.updatewanv4rc")
 else:
    print("no rc file found, exiting")
-   exit(-1) 
+   exit(-1)
 
 Gzu.init(rcfile)
 
 logger = logging.getLogger('updatewan')
 
 if gzu.shouldUpdateWanV4Address(args.v4_addr):
-    logger.info('zone update is needed')
     gzu.doUpdateWanV4Address(args.v4_addr)
-else:
-    logger.info('zone is up to date')

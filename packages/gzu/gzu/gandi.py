@@ -19,6 +19,7 @@ def shouldUpdateWanV4Address(wanV4Adress):
             logger.info('wan v4 address ' + wanV4Adress + ' mismatches with zone record ' + A_record['value'])
             return True
 
+    logger.info('wan v4 address ' + wanV4Adress + ' is up to date')
     return False
 
 
