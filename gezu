@@ -1,8 +1,104 @@
 #!/usr/bin/env python3
 import argparse
-import gzu
+import configparser
+import logging
+import logging.handlers
+import os
+import sys
+import xmlrpc.client
+import pprint
 
-from gzu import *
+
+class Gezu:
+    def __init__(self, config_file):
+        try:
+            self.logger = logging.getLogger('gandi')
+            config = configparser.ConfigParser()
+            config.read(config_file)
+            self.API_KEY = config['gandi']['api_key']
+            self.ZONE_ID = int(config['gandi']['zone_id'])
+            self.XML_RPC_URL = config['gandi']['xml_rpc_url']
+
+            loglevel = logging.INFO
+            try:
+                log_level_string = config['log']['level']
+                if log_level_string:
+                    loglevel = getattr(logging, log_level_string)
+            except KeyError:
+                pass
+
+            root = logging.getLogger()
+            root.setLevel(loglevel)
+            formatter = logging.Formatter('%(asctime)s:%(name)s:%(levelname)s:%(message)s')
+
+            logfile = None
+            try:
+                logfile = os.path.expanduser(config['log']['path'])
+            except KeyError:
+                pass
+
+            if logfile:
+                splat = os.path.splitext(logfile)
+                handler = logging.handlers.RotatingFileHandler(splat[0] + ".debug" + splat[1], maxBytes=500 * 1024,
+                                                               backupCount=10)
+                handler.setFormatter(formatter)
+                handler.setLevel(logging.DEBUG)
+                root.addHandler(handler)
+
+                handler = logging.handlers.RotatingFileHandler(logfile, maxBytes=50 * 1024, backupCount=10)
+                handler.setFormatter(formatter)
+                handler.setLevel(logging.INFO)
+                root.addHandler(handler)
+            else:
+                handler = logging.handlers.SysLogHandler(address='/dev/log')
+                root.addHandler(handler)
+
+        except:
+            print('init error:', sys.exc_info()[0])
+            raise
+
+    def should_update_wan_v4_address(self, wan_v4_address: str) -> bool:
+        api = xmlrpc.client.ServerProxy(self.XML_RPC_URL)
+        self.logger.debug(api.version.info(self.API_KEY))
+        pp = pprint.PrettyPrinter(indent=4)
+        self.logger.debug(pp.pformat(api.domain.zone.list(self.API_KEY)))
+
+        A_records = api.domain.zone.record.list(self.API_KEY, self.ZONE_ID, 0, {'type': ['A']})
+        self.logger.debug(pp.pformat(A_records))
+
+        for A_record in A_records:
+            if A_record['value'] != wan_v4_address:
+                self.logger.info('wan v4 address ' + wan_v4_address + ' mismatches with zone record ' + A_record['value'])
+                return True
+
+        self.logger.info('wan v4 address ' + wan_v4_address + ' is up to date')
+        return False
+
+    def do_update_wan_v4_address(self, wan_v4_address: str):
+        api = xmlrpc.client.ServerProxy(self.XML_RPC_URL)
+        self.logger.debug(api.version.info(self.API_KEY))
+
+        new_version_id = api.domain.zone.version.new(self.API_KEY, self.ZONE_ID)
+        new_A_records = api.domain.zone.record.list(self.API_KEY, self.ZONE_ID, new_version_id, {'type': ['A']})
+
+        for new_A_record in new_A_records:
+            api.domain.zone.record.update(
+                self.API_KEY,
+                self.ZONE_ID,
+                new_version_id,
+                {
+                    'id': new_A_record['id']
+                },
+                {
+                    'name': new_A_record['name'],
+                    'type': new_A_record['type'],
+                    'value': wan_v4_address,
+                    'ttl': new_A_record['ttl']
+                }
+            )
+
+        api.domain.zone.version.set(self.API_KEY, self.ZONE_ID, new_version_id)
+
 
 parser = argparse.ArgumentParser(description='ipv4 wan address updater')
 parser.add_argument('--rc-file', help='path to the resource configuration file location', required=False)
@@ -10,16 +106,14 @@ parser.add_argument('--v4-addr', help='v4 wan address to be registered', require
 args = parser.parse_args()
 
 if args.rc_file and os.path.exists(args.rc_file):
-   rcfile = args.rc_file
+    rc_file = args.rc_file
 elif os.path.exists(os.path.expanduser("~/.updatewanv4rc")):
-   rcfile = os.path.expanduser("~/.updatewanv4rc")
+    rc_file = os.path.expanduser("~/.updatewanv4rc")
 else:
-   print("no rc file found, exiting")
-   exit(-1)
+    print("no rc file found, exiting")
+    exit(-1)
 
-Gzu.init(rcfile)
+gezu = Gezu(rc_file)
 
-logger = logging.getLogger('updatewan')
-
-if gzu.shouldUpdateWanV4Address(args.v4_addr):
-    gzu.doUpdateWanV4Address(args.v4_addr)
+if gezu.should_update_wan_v4_address(args.v4_addr):
+    gezu.do_update_wan_v4_address(args.v4_addr)
